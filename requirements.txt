@@ -1,7 +1,6 @@
 streamlit
 http.server
 socketserver
-spotipy.oauth2
+spotipy
 webbrowser
 threading
-spotipy
