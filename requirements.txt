@@ -1,0 +1,7 @@
+streamlit
+http.server
+socketserver
+spotipy.oauth2
+webbrowser
+threading
+spotipy
