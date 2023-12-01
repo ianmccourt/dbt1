@@ -2,4 +2,3 @@ spotipy
 streamlit
 pandas
 plotly
-re
