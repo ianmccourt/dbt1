@@ -1,6 +1,6 @@
 spotipy
 streamlit
-http.server
-socketserver
-webbrowser
-threading
+pandas
+plotly
+PIL
+import re
