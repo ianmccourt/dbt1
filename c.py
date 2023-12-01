@@ -17,7 +17,7 @@ from spotipy.oauth2 import SpotifyOAuth
 # Your Spotify API credentials (note: it's not secure to include your credentials in the code)
 client_id = '8cfa81fbc4074f3aad32716a36044864'
 client_secret = 'a64ec813eaa24d19a42c694dbc61ba35'
-redirect_uri = 'https://vibifytest01.streamlit.app/'
+redirect_uri = 'https://vibifytest01.streamlit.app'
 
 # Set up the Spotify client credentials manager and Spotipy client
 client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
