@@ -1,6 +1,6 @@
+spotipy
 streamlit
 http.server
 socketserver
-spotipy
 webbrowser
 threading

@@ -10,7 +10,7 @@ from spotipy.oauth2 import SpotifyOAuth
 
 client_id = '8cfa81fbc4074f3aad32716a36044864'
 client_secret = 'a64ec813eaa24d19a42c694dbc61ba35'
-redirect_uri = 'http://localhost:8080'
+redirect_uri = 'https://vibifytest.streamlit.app/'
 
 SPOTIPY_SCOPE = 'user-library-read playlist-read-private'
 
@@ -33,21 +33,61 @@ def id_from_url(url):
         st.error('Invalid URL', icon="🚨")
 
 
+@st.cache_data(show_spinner=False)
+def fetch_playlists(token_info):
+    sp = spotipy.Spotify(auth=token_info["access_token"])
+    return sp.current_user_playlists()
+
+
 def login():
+    # Get the access token or redirect to Spotify login page
+    token_info = sp_oauth.get_cached_token()
+
     # Check if the URL contains the authorization code
     url_params = st.experimental_get_query_params()
     code = url_params.get("code", None)
 
+    if not token_info and not code:
+        auth_url = sp_oauth.get_authorize_url()
+        st.info("Please log in to Spotify.")
+        st.markdown(f"Click [here]({auth_url}) to log in.")
+
     # If the URL contains the authorization code, get the access token
     if code:
-        token_info = sp_oauth.get_access_token(code)
-        st.success("Successfully authenticated! You can now fetch your playlists.")
-        return token_info
+        try:
+            token_info = sp_oauth.get_access_token(code)
+            st.success("Successfully authenticated! You can now fetch your playlists.")
+        except spotipy.SpotifyException as e:
+            st.error(f"Error authenticating: {e}")
 
-    # If there's no token, redirect to Spotify login
-    auth_url = sp_oauth.get_authorize_url()
-    st.warning(f"Please log in to Spotify: [Click here to log in]({auth_url})")
-    return None
+    if token_info:
+        # Refresh the access token if it's expired
+        if sp_oauth.is_token_expired(token_info):
+            try:
+                token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
+                st.success("Successfully refreshed access token.")
+            except spotipy.SpotifyException as e:
+                st.error(f"Error refreshing access token: {e}")
+
+        # Display user information
+        sp = spotipy.Spotify(auth=token_info["access_token"])
+        user_info = sp.me()
+
+        if 'images' in user_info and user_info['images']:
+            profile_picture_url = user_info['images'][0]['url']
+            st.image(profile_picture_url, caption=user_info['display_name'], width=75)
+        else:
+            st.warning("User profile picture not available.")
+
+        # Fetch and display user playlists
+        playlists = fetch_playlists(token_info)
+
+        # Create a dropdown to select a playlist
+        selected_playlist_name = st.selectbox("Select a playlist:",
+                                              [playlist['name'] for playlist in playlists['items']])
+
+        return sp, selected_playlist_name  # Return the Spotify client and selected playlist name
+
 
 def function(playlist_id):
     st.balloons()
@@ -126,6 +166,7 @@ def function(playlist_id):
     st.plotly_chart(fig_top_artistss)
     '''
 
+
 def get_recommendations(track_name):
     results = sp.search(q=track_name, type='track')
     track_uri = results['tracks']['items'][0]['uri']
@@ -135,68 +176,68 @@ def get_recommendations(track_name):
     return recommendations
 
 
+@st.cache_resource(show_spinner=False, experimental_allow_widgets=True)
 def main():
     st.title("Spotify Playlist Analyzer")
-
     image = Image.open('Vibify.png')
     st.sidebar.image(image)
 
     playlist_name = st.sidebar.text_input("Enter the URL of your Spotify playlist:")
     st.sidebar.write("Or...")
-    button = st.sidebar.button("Login with Spotify", use_container_width=True)
+
+    # Use st.button with a specific key
+    login_button = st.sidebar.button("Login with Spotify", key="login_button", use_container_width=True)
+
+    # Initialize session state
+    if 'selected_playlist_name' not in st.session_state:
+        st.session_state.selected_playlist_name = None
 
     if playlist_name:
         url_type, playlist_id1 = id_from_url(playlist_name)
     else:
         playlist_id1 = None
 
-    if button:
-        # Get the access token or redirect to Spotify login page
-        token_info = sp_oauth.get_cached_token()
+    sp = None  # Initialize Spotify client outside of the if conditions
 
-        # Display login button if not authenticated
-        if not token_info:
-            token_info = login()
+    # Check if the login button is clicked
+    if login_button:
+        sp, selected_playlist_name = login()
 
-        # If authentication is successful, fetch and display playlists
-        if token_info:
-            sp = spotipy.Spotify(auth=token_info["access_token"])
+        # Store the selected playlist name in session state
+        st.session_state.selected_playlist_name = selected_playlist_name
 
-            # Fetch and display user playlists
-            playlists = sp.current_user_playlists()
-
-            # Create a dropdown to select a playlist
-            selected_playlist_name = st.selectbox("Select a playlist:",
-                                                  [playlist['name'] for playlist in playlists['items']])
-
-            # Display playlist information only when the playlist is selected
-            if st.button("Fetch Playlist Data"):
-                # Get the selected playlist
-                selected_playlist = next(
-                    (playlist for playlist in playlists['items'] if playlist['name'] == selected_playlist_name), None)
-                playlist_id2 = selected_playlist['id']
-    else:
-        playlist_id2 = None
+    if playlist_id1 or (sp and st.session_state.selected_playlist_name):
+        # Call a separate function to handle playlist selection
+        handle_playlist_selection(sp)
 
 
-    results = []
-    if playlist_id1:
-        # del results
-        results = function(playlist_id1)
-        return results
-    elif playlist_id2:
-        # del results
-        results = function(playlist_id2)
+# Function to handle playlist selection
+def handle_playlist_selection(sp):
+    # Fetch user's playlists
+    playlists = sp.current_user_playlists()
+
+    # Create a dropdown to select a playlist
+    selected_playlist_name = st.selectbox("Select a playlist:",
+                                          [playlist['name'] for playlist in playlists['items']],
+                                          key="playlist_dropdown")
+
+    # Store the selected playlist name in session state
+    st.session_state.selected_playlist_name = selected_playlist_name
+
+    # Find the playlist with the matching name
+    selected_playlist = next(
+        (playlist for playlist in playlists['items'] if playlist['name'] == st.session_state.selected_playlist_name),
+        None
+    )
+
+    if selected_playlist:
+        playlist_id = selected_playlist['id']
+        function(playlist_id)
         st.success('Got playlist!')
-
-    if results:
-        recommendations = get_recommendations(results)
-        st.write("Recommended songs:")
-        for track in recommendations:
-            st.write(f"{track['name']} ---- {track['artists'][0]['name']}")
-            st.image(track['album']['images'][0]['url'], width=400)
+    else:
+        st.warning(f"Playlist with name '{st.session_state.selected_playlist_name}' not found.")
 
 
-if __name__ == '__main__':
+# Run the Streamlit app
+if __name__ == "__main__":
     main()
-
