@@ -703,7 +703,7 @@ def main():
 
     # Check if the login button is clicked
     if login_button:
-        sp, selected_playlist_name = c.login()
+        sp, selected_playlist_name = login()
 
         # Store the selected playlist name in session state
         st.session_state.selected_playlist_name = selected_playlist_name
@@ -734,7 +734,7 @@ def handle_playlist_selection(sp):
 
     if selected_playlist:
         playlist_id = selected_playlist['id']
-        run(c.Playlist(playlist_id))
+        run(Playlist(playlist_id))
         st.success('Got playlist!')
     else:
         st.warning(f"Playlist with name '{st.session_state.selected_playlist_name}' not found.")
