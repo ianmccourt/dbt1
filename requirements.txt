@@ -1,5 +1,6 @@
 spotipy
+spotipy.oauth2.SpotifyOAuth
+spotipy.oauth2.SpotifyClientCredentials
 streamlit
 pandas
 plotly
-spotipy.oauth2
