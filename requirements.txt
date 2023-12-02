@@ -2,3 +2,4 @@ spotipy
 streamlit
 pandas
 plotly
+spotipy.oauth2
